@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Calculadora DP</title>
+<link rel="stylesheet" href="css/style.css">
+<script>try{if(localStorage.getItem('calc-dp-tema')==='dark')document.documentElement.dataset.theme='dark'}catch(e){}</script>
+</head>
+<body>
+<main class="card">
+  <button type="button" class="btn soft theme" id="btn-tema"></button>
+  <h1 class="title" aria-label="Calculadora DP"><span class="t1">Calculadora</span><span class="t2">DP</span></h1>
+  <p class="sub">Saldo de horas, hora extra, adicional noturno e faltas · uso do Departamento Pessoal</p>
+
+  <section class="top">
+    <div class="panel">
+      <h2><span class="tag">Colaborador</span></h2>
+      <div class="fields">
+        <label class="wide">Nome (opcional, sai no resumo)<input id="nome" type="text" autocomplete="off"></label>
+        <label>Salário<input id="sal" class="money" inputmode="decimal" autocomplete="off" placeholder="0,00"></label>
+        <label>Insalubridade<input id="ins" class="money" inputmode="decimal" autocomplete="off" placeholder="0,00"></label>
+        <label>Quinquênio<input id="qq" class="money" inputmode="decimal" autocomplete="off" placeholder="0,00"></label>
+        <label>Gratificações fixas<input id="gr" class="money" inputmode="decimal" autocomplete="off" placeholder="0,00"></label>
+        <label>Carga horária mensal<select id="ch"><option value="220">220 horas</option><option value="200">200 horas</option><option value="180">180 horas</option><option value="150">150 horas</option><option value="outro">Outra…</option></select></label>
+        <label id="ch-o-wrap" hidden>Carga horária (horas)<input id="ch-o" inputmode="decimal" autocomplete="off"></label>
+      </div>
+      <div class="facts" id="base-facts"></div>
+    </div>
+    <div class="panel">
+      <h2><span class="tag">Mês</span> <span style="text-transform:none;font-family:var(--body);font-size:13px;color:var(--muted)">para o DSR</span></h2>
+      <div class="fields">
+        <label>Mês<select id="mes"></select></label>
+        <label>Ano<input id="ano" type="number" inputmode="numeric"></label>
+        <label>Feriados no mês (fora domingo)<input id="fer" type="number" min="0" max="10" inputmode="numeric"></label>
+      </div>
+      <p class="note" id="fer-note"></p>
+      <div class="inline"><input type="checkbox" id="dsr-man" aria-label="Ajustar domingos e dias úteis à mão"><span>Ajustar à mão (ex.: escala 12x36)</span></div>
+      <div class="fields" id="dsr-man-box" hidden>
+        <label>Domingos e feriados<input id="dom-m" type="number" min="0" inputmode="numeric"></label>
+        <label>Dias úteis<input id="ut-m" type="number" min="1" inputmode="numeric"></label>
+      </div>
+      <div class="facts" id="dsr-facts"></div>
+    </div>
+  </section>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="tab-saldo" data-t="saldo" aria-selected="false">Saldo de horas<span class="val" id="tv-saldo"></span></button>
+    <button role="tab" id="tab-he" data-t="he" aria-selected="true">Hora extra<span class="val" id="tv-he"></span></button>
+    <button role="tab" id="tab-an" data-t="an" aria-selected="false">Adicional noturno<span class="val" id="tv-an"></span></button>
+    <button role="tab" id="tab-falta" data-t="falta" aria-selected="false">Faltas e atrasos<span class="val" id="tv-falta"></span></button>
+  </nav>
+
+  <!-- SALDO DE HORAS -->
+  <section class="pane" id="pane-saldo" hidden>
+    <div class="inputs">
+      <p class="note">Confira o ponto antes de lançar. Digite só números: 15 vira 00:15 e 130 vira 01:30. Enter desce e cria linha nova no final. Dá para colar uma coluna copiada do Excel.</p>
+      <div class="sgrid" id="s-grid"><div class="sh ex">Hora extra</div><div class="sh at">Atraso</div><div></div></div>
+      <div class="sbtns"><button type="button" class="btn add" id="s-add">+ Adicionar horário</button><button type="button" class="btn danger" id="s-clear">Limpar horários</button></div>
+    </div>
+    <div class="memo" id="memo-saldo"></div>
+  </section>
+
+  <!-- HORA EXTRA -->
+  <section class="pane" id="pane-he">
+    <div class="inputs">
+      <p class="note">Uma linha para cada percentual. Digite as horas só com números: 818 vira 08:18.</p>
+      <div class="rows" id="he-rows"></div>
+      <div><button type="button" class="btn add" id="he-add">+ Outro percentual</button></div>
+    </div>
+    <div class="memo" id="memo-he"></div>
+  </section>
+
+  <!-- ADICIONAL NOTURNO -->
+  <section class="pane" id="pane-an" hidden>
+    <div class="inputs">
+      <div class="fields">
+        <label>Percentual<select id="an-p"><option value="20">20%</option><option value="30">30%</option><option value="outro">Outro…</option></select></label>
+        <label id="an-po-wrap" hidden>Percentual (%)<input id="an-po" inputmode="decimal" autocomplete="off"></label>
+        <label>Horas noturnas no relógio<input id="an-h" class="hh" inputmode="numeric" autocomplete="off" placeholder="00:00"></label>
+      </div>
+      <div class="inline"><input type="checkbox" id="an-red" checked aria-label="Converter para hora noturna reduzida"><span>Converter para hora noturna reduzida (52min30s): 7 horas de relógio = 8 horas noturnas</span></div>
+    </div>
+    <div class="memo" id="memo-an"></div>
+  </section>
+
+  <!-- FALTAS -->
+  <section class="pane" id="pane-falta" hidden>
+    <div class="inputs">
+      <div class="fields">
+        <label>Dias de falta<input id="f-dias" type="number" min="0" inputmode="numeric" placeholder="0"></label>
+        <label>Divisor (dias do mês)<input id="f-div" type="number" min="1" inputmode="numeric"></label>
+        <label>Semanas com falta<input id="f-sem" type="number" min="0" inputmode="numeric" placeholder="0"></label>
+        <label>Feriados nessas semanas<input id="f-ferw" type="number" min="0" inputmode="numeric" placeholder="0"></label>
+        <label>Atrasos a descontar<input id="f-atr" class="hh" inputmode="numeric" autocomplete="off" placeholder="00:00"></label>
+      </div>
+      <p class="note">Perda do DSR: cada semana com falta sem justificativa perde o repouso remunerado daquela semana, e também o feriado que cair nela. Os atrasos são descontados pelo valor da hora, sem o adicional.</p>
+    </div>
+    <div class="memo" id="memo-falta"></div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:14px">
+    <h2><span class="tag r">Resumo</span></h2>
+    <div class="resumo">
+      <div class="box pv" id="r-pv"></div>
+      <div class="box ds" id="r-ds"></div>
+      <div class="box rs" id="r-rs"></div>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn danger" id="btn-clear">Limpar tudo</button>
+      <button type="button" class="btn soft" id="btn-copy">Copiar resumo</button>
+      <div class="dl-wrap">
+        <button type="button" class="btn main" id="btn-down" aria-expanded="false" aria-controls="dl-menu">Baixar resumo ▾</button>
+        <div class="dl-menu" id="dl-menu" hidden>
+          <button type="button" data-fmt="pdf">PDF</button>
+          <button type="button" data-fmt="png">Imagem PNG</button>
+          <button type="button" data-fmt="jpg">Imagem JPG</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast" hidden></div>
+<script src="js/app.js"></script>
+</body>
+</html>
