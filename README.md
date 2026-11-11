@@ -36,3 +36,9 @@ As horas são guardadas em **minutos** (ex.: 08:18 = 498) e convertidas para hor
 ## Observação
 
 Os dados digitados ficam salvos no navegador de quem usa (localStorage). Nada é enviado para a internet.
+
+## Insalubridade e quinquênio
+
+- **Insalubridade:** 10%, 20%, 30% ou 40% do salário mínimo (campo "Salário mínimo (base)", padrão R$ 1.621,00 de 2026), ou valor digitado.
+- **Quinquênio:** 1 a 5 quinquênios (5% a 25% do salário), outro percentual, ou valor digitado.
+- No código: `insPct()`, `insVal()`, `qqPctAtual()` e `qqVal()` em `js/app.js`. O salário mínimo é mantido ao usar "Limpar tudo".

@@ -19,8 +19,12 @@
       <div class="fields">
         <label class="wide">Nome (opcional, sai no resumo)<input id="nome" type="text" autocomplete="off"></label>
         <label>Salário<input id="sal" class="money" inputmode="decimal" autocomplete="off" placeholder="0,00"></label>
-        <label>Insalubridade<input id="ins" class="money" inputmode="decimal" autocomplete="off" placeholder="0,00"></label>
-        <label>Quinquênio<input id="qq" class="money" inputmode="decimal" autocomplete="off" placeholder="0,00"></label>
+        <label>Insalubridade<select id="ins-m"><option value="0">Não tem</option><option value="10">10% do salário mínimo</option><option value="20">20% do salário mínimo</option><option value="30">30% do salário mínimo</option><option value="40">40% do salário mínimo</option><option value="valor">Digitar o valor</option></select></label>
+        <label id="smin-wrap" hidden>Salário mínimo (base)<input id="smin" class="money" inputmode="decimal" autocomplete="off" placeholder="0,00"></label>
+        <label id="ins-wrap" hidden>Valor da insalubridade<input id="ins" class="money" inputmode="decimal" autocomplete="off" placeholder="0,00"></label>
+        <label>Quinquênio<select id="qq-m"><option value="0">Não tem</option><option value="5">1 quinquênio (5%)</option><option value="10">2 quinquênios (10%)</option><option value="15">3 quinquênios (15%)</option><option value="20">4 quinquênios (20%)</option><option value="25">5 quinquênios (25%)</option><option value="pct">Outro percentual</option><option value="valor">Digitar o valor</option></select></label>
+        <label id="qq-pct-wrap" hidden>Percentual do quinquênio (%)<input id="qq-pct" inputmode="decimal" autocomplete="off" placeholder="0"></label>
+        <label id="qq-wrap" hidden>Valor do quinquênio<input id="qq" class="money" inputmode="decimal" autocomplete="off" placeholder="0,00"></label>
         <label>Gratificações fixas<input id="gr" class="money" inputmode="decimal" autocomplete="off" placeholder="0,00"></label>
         <label>Carga horária mensal<select id="ch"><option value="220">220 horas</option><option value="200">200 horas</option><option value="180">180 horas</option><option value="150">150 horas</option><option value="outro">Outra…</option></select></label>
         <label id="ch-o-wrap" hidden>Carga horária (horas)<input id="ch-o" inputmode="decimal" autocomplete="off"></label>

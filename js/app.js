@@ -8,9 +8,14 @@ const K='calc-dp-v1';
 function load(){try{const v=JSON.parse(localStorage.getItem(K)||'null');return v&&typeof v==='object'?v:null}catch(e){return null}}
 function save(){try{localStorage.setItem(K,JSON.stringify(st))}catch(e){}}
 const now=new Date();
-const DEF=()=>({nome:'',sal:0,ins:0,qq:0,gr:0,ch:'220',chO:0,mes:now.getMonth(),ano:now.getFullYear(),fer:null,man:false,domM:0,utM:0,
+const SMIN_PADRAO=1621; /* salário mínimo nacional de 2026 */
+const DEF=()=>({nome:'',sal:0,ins:0,qq:0,gr:0,insM:'0',qqM:'0',qqPct:0,smin:SMIN_PADRAO,ch:'220',chO:0,mes:now.getMonth(),ano:now.getFullYear(),fer:null,man:false,domM:0,utM:0,
   he:[{p:'50',po:0,min:0}],anP:'20',anPo:0,anMin:0,anRed:true,fDias:0,fDiv:30,fSem:0,fFerw:0,fAtr:0,tab:'saldo',sRows:Array.from({length:11},()=>({ex:0,at:0}))});
-let st=Object.assign(DEF(),load()||{});
+const salvo=load();
+let st=Object.assign(DEF(),salvo||{});
+/* versões anteriores guardavam só o valor: mantém como "Digitar o valor" */
+if(salvo&&salvo.insM===undefined)st.insM=salvo.ins>0?'valor':'0';
+if(salvo&&salvo.qqM===undefined)st.qqM=salvo.qq>0?'valor':'0';
 if(!Array.isArray(st.he)||!st.he.length)st.he=[{p:'50',po:0,min:0}];
 if(!Array.isArray(st.sRows)||!st.sRows.length)st.sRows=Array.from({length:11},()=>({ex:0,at:0}));
 
@@ -46,9 +51,15 @@ function monthInfo(){
 }
 
 /* ---------- cálculo ---------- */
+/* insalubridade: % do salário mínimo, ou valor digitado */
+function insPct(){return st.insM==='valor'?null:(+st.insM||0)}
+function insVal(){const p=insPct();return p==null?st.ins:r2((+st.smin||0)*p/100)}
+/* quinquênio: % do salário, ou valor digitado */
+function qqPctAtual(){return st.qqM==='valor'?null:st.qqM==='pct'?(+st.qqPct||0):(+st.qqM||0)}
+function qqVal(){const p=qqPctAtual();return p==null?st.qq:r2((+st.sal||0)*p/100)}
 function carga(){return st.ch==='outro'?(+st.chO||0):+st.ch}
 function compute(){
-  const rem=st.sal+st.ins+st.qq+st.gr, ch=carga(), vh=ch>0?rem/ch:0, mi=monthInfo(), fr=mi.ut>0?mi.dom/mi.ut:0;
+  const insP=insPct(), insV=insVal(), qqP=qqPctAtual(), qqV=qqVal(), rem=st.sal+insV+qqV+st.gr, ch=carga(), vh=ch>0?rem/ch:0, mi=monthInfo(), fr=mi.ut>0?mi.dom/mi.ut:0;
   // hora extra
   const heRows=st.he.map(r=>{const p=(r.p==='outro'?(+r.po||0):+r.p)/100;const vhp=vh*(1+p);return {p,vhp,min:r.min,val:r2(vhp*hdec(r.min))}});
   const heTot=r2(heRows.reduce((s,r)=>s+r.val,0)), heDsr=r2(heTot*fr);
@@ -60,7 +71,7 @@ function compute(){
   const div=Math.max(1,+st.fDiv||30), vd=rem/div;
   const fVal=r2(vd*(+st.fDias||0)), dsrDias=(+st.fSem||0)+(+st.fFerw||0), fDsr=r2(vd*dsrDias), fAtr=r2(vh*hdec(st.fAtr));
   const prov=r2(heTot+heDsr+anVal+anDsr), desc=r2(fVal+fDsr+fAtr);
-  return {rem,ch,vh,mi,fr,heRows,heTot,heDsr,anP,anMinNot,anVh,anVal,anDsr,div,vd,fVal,dsrDias,fDsr,fAtr,prov,desc,res:r2(prov-desc)};
+  return {insP,insV,qqP,qqV,rem,ch,vh,mi,fr,heRows,heTot,heDsr,anP,anMinNot,anVh,anVal,anDsr,div,vd,fVal,dsrDias,fDsr,fAtr,prov,desc,res:r2(prov-desc)};
 }
 
 /* ---------- campos ---------- */
@@ -71,6 +82,17 @@ function bindMoney(id){
   el.addEventListener('blur',()=>{el.value=st[id]?num2(st[id]):''});
 }
 moneyIds.forEach(bindMoney);
+bindMoney('smin');
+function syncAdic(){
+  $('ins-m').value=st.insM;$('qq-m').value=st.qqM;
+  $('smin-wrap').hidden=insPct()==null||insPct()===0;$('ins-wrap').hidden=st.insM!=='valor';
+  $('qq-pct-wrap').hidden=st.qqM!=='pct';$('qq-wrap').hidden=st.qqM!=='valor';
+}
+$('ins-m').addEventListener('change',e=>{const antes=insVal();st.insM=e.target.value;if(st.insM==='valor')st.ins=antes;syncAdic();fillMoney();update()});
+$('qq-m').addEventListener('change',e=>{const antes=qqVal();st.qqM=e.target.value;if(st.qqM==='valor')st.qq=antes;syncAdic();fillMoney();update()});
+$('qq-pct').value=st.qqPct||'';$('qq-pct').addEventListener('input',e=>{st.qqPct=parseMoney(e.target.value);update()});
+function fillMoney(){['ins','qq','smin'].forEach(id=>{if(document.activeElement!==$(id))$(id).value=st[id]?num2(st[id]):''})}
+syncAdic();
 $('nome').value=st.nome;$('nome').addEventListener('input',e=>{st.nome=e.target.value;save()});
 function bindSelect(id,key,otherWrap,otherId,otherKey){
   const el=$(id);el.value=st[key];
@@ -180,7 +202,11 @@ const li=(a,b,cls)=>`<li${cls?` class="${cls}"`:''}><span>${a}</span><span>${b}<
 const pctTxt=p=>(p*100).toLocaleString('pt-BR',{maximumFractionDigits:2})+'%';
 function update(){
   const c=compute();save();
-  $('base-facts').innerHTML=`<span class="chip">Remuneração <b>${brl(c.rem)}</b></span><span class="chip">÷ ${num4(c.ch)} h</span><span class="chip">Valor da hora <b>${brl(c.vh)}</b></span>`;
+  const pctF=p=>p.toLocaleString('pt-BR',{maximumFractionDigits:2})+'%';
+  let adic='';
+  if(c.insP)adic+=`<span class="chip">Insalubridade ${pctF(c.insP)} de ${brl(+st.smin||0)} = <b>${brl(c.insV)}</b></span>`;
+  if(c.qqP)adic+=`<span class="chip">Quinquênio ${pctF(c.qqP)} do salário = <b>${brl(c.qqV)}</b></span>`;
+  $('base-facts').innerHTML=adic+`<span class="chip">Remuneração <b>${brl(c.rem)}</b></span><span class="chip">÷ ${num4(c.ch)} h</span><span class="chip">Valor da hora <b>${brl(c.vh)}</b></span>`;
   const mi=c.mi;
   $('fer-note').textContent=mi.nat.length?'Feriados nacionais do mês: '+mi.nat.map(h=>String(h.d.getDate()).padStart(2,'0')+'/'+String(mi.m+1).padStart(2,'0')+' ('+WD[h.d.getDay()]+', '+h.n+')').join('; ')+'. Some os feriados estaduais e municipais.':'Nenhum feriado nacional neste mês fora de domingo. Some os estaduais e municipais, se houver.';
   if(document.activeElement!==$('fer'))$('fer').value=mi.fer;
@@ -232,6 +258,11 @@ function summaryLines(){
   const c=R,mi=c.mi,L=[];
   L.push(['h','Calculadora DP · '+MESES[mi.m]+' de '+mi.y]);
   if(st.nome.trim())L.push(['t','Colaborador: '+st.nome.trim()]);
+  {const pctF=p=>p.toLocaleString('pt-BR',{maximumFractionDigits:2})+'%',partes=['Salário '+brl(st.sal)];
+   if(c.insV)partes.push('Insalubridade '+brl(c.insV)+(c.insP?' ('+pctF(c.insP)+' do mínimo)':''));
+   if(c.qqV)partes.push('Quinquênio '+brl(c.qqV)+(c.qqP?' ('+pctF(c.qqP)+')':''));
+   if(st.gr)partes.push('Gratificações '+brl(st.gr));
+   if(partes.length>2){L.push(['t',partes.slice(0,2).join(' + ')]);L.push(['t','+ '+partes.slice(2).join(' + ')])}else L.push(['t',partes.join(' + ')]);}
   L.push(['t','Remuneração '+brl(c.rem)+' ÷ '+num4(c.ch)+' h = valor da hora '+brl(c.vh)]);
   L.push(['t','DSR: '+mi.dom+' domingos e feriados ÷ '+mi.ut+' dias úteis']);
   if(c.heTot){L.push(['s','Hora extra']);c.heRows.forEach(r=>{if(r.min)L.push(['l',pctTxt(r.p)+': '+hhmm(r.min)+' × '+brl(r.vhp),brl(r.val)])});L.push(['l','DSR sobre hora extra',brl(c.heDsr)])}
@@ -278,24 +309,19 @@ function menuDl(o){dlM.hidden=!o;dlB.setAttribute('aria-expanded',o?'true':'fals
 dlB.addEventListener('click',()=>menuDl(dlM.hidden));
 document.addEventListener('click',e=>{if(!dlM.hidden&&!e.target.closest('.dl-wrap'))menuDl(false)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!dlM.hidden){menuDl(false);dlB.focus()}});
-let dlP=null;function getDownloads(){if(!dlP){if(window.claude&&window.claude.use)dlP=window.claude.use('downloads').catch(()=>null);else return Promise.resolve(null)}return dlP}
-getDownloads();
 dlM.addEventListener('click',async e=>{
   const b=e.target.closest('[data-fmt]');if(!b)return;const fmt=b.dataset.fmt;menuDl(false);dlB.focus();
   const cv=drawPNG(fmt==='pdf'?2:1);const name=('Calculadora DP - '+(st.nome.trim()?st.nome.trim()+' - ':'')+MESES[R.mi.m]+' '+R.mi.y+'.'+fmt).replace(/[\\/:*?"<>|]+/g,'-');
   const mime=fmt==='png'?'image/png':'image/jpeg',u8=dataBytes(cv.toDataURL(mime,.92));
   const blob=fmt==='pdf'?makePDF(u8,cv.width,cv.height):new Blob([u8],{type:mime});
-  const dl=await getDownloads();
-  if(dl){try{await dl.save({filename:name,data:blob});toast('Arquivo salvo');return}catch(e){if(e&&e.code==='declined')return}}
-  if(!(window.claude&&window.claude.use)){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);toast('Arquivo salvo em Downloads');return}
-  toast('O download não está disponível aqui. Use Copiar resumo.');
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);toast('Arquivo salvo em Downloads');
 });
 let armed=null;
 $('btn-clear').addEventListener('click',e=>{
   const b=e.currentTarget;
   if(!armed){b.textContent='Clique de novo para limpar';b.classList.add('armed');armed=setTimeout(()=>{b.textContent='Limpar tudo';b.classList.remove('armed');armed=null},3000);return}
   clearTimeout(armed);armed=null;b.textContent='Limpar tudo';b.classList.remove('armed');
-  const keep={mes:st.mes,ano:st.ano,ch:st.ch,chO:st.chO,tab:st.tab};st=Object.assign(DEF(),keep);fillFields();renderHE();update();renderSaldo();saldoUpdate();toast('Campos limpos');
+  const keep={mes:st.mes,ano:st.ano,ch:st.ch,chO:st.chO,tab:st.tab,smin:st.smin};st=Object.assign(DEF(),keep);fillFields();renderHE();update();renderSaldo();saldoUpdate();toast('Campos limpos');
 });
 let tt=null;function toast(m){const t=$('toast');t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2600)}
 
@@ -307,6 +333,7 @@ syncTema();
 
 function fillFields(){
   moneyIds.forEach(id=>$(id).value=st[id]?num2(st[id]):'');
+  $('smin').value=st.smin?num2(st.smin):'';$('qq-pct').value=st.qqPct||'';syncAdic();
   $('nome').value=st.nome;$('ch').value=st.ch;$('ch-o-wrap').hidden=st.ch!=='outro';$('ch-o').value=st.chO||'';
   $('an-p').value=st.anP;$('an-po-wrap').hidden=st.anP!=='outro';$('an-po').value=st.anPo||'';
   $('mes').value=st.mes;$('ano').value=st.ano;$('dsr-man').checked=st.man;$('dsr-man-box').hidden=!st.man;
